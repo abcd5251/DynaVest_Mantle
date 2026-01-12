@@ -43,6 +43,21 @@ class PortfolioAllocationService {
       }
 
       case "medium": {
+        // Special handling for demo: specific strategies requested
+        const targetIds = ["HarvestFortyAcresUSDC", "MorphoSupply", "AaveV3SupplyLeveraged"];
+        
+        // Find these strategies in metadata, ignoring chainId filter
+        const specificStrategies = STRATEGIES_METADATA
+          .filter(s => targetIds.includes(s.id) && s.status === "active")
+          .map(s => ({
+             ...s,
+             currentAPY: liveAPYData?.get(s.id) || s.apy
+          }));
+
+        if (specificStrategies.length > 0) {
+             return specificStrategies.sort((a, b) => (b.currentAPY || b.apy) - (a.currentAPY || a.apy));
+        }
+
         // For medium risk: select medium-risk strategies, sorted by APY
         const mediumRiskStrategies = strategiesWithAPY
           .filter((s) => s.risk === "medium")

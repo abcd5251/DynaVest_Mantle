@@ -33,5 +33,6 @@ export const createPieChartStrategies = (
     apy: `APY ${strategy.apy}%`,
     risk: strategy.risk,
     allocation: strategy.allocation,
+    chainId: strategy.chainId,
   }));
 };

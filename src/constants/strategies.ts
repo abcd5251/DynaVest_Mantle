@@ -1,8 +1,8 @@
-import { celo, flowMainnet, base, bsc, arbitrum, polygon, mainnet, mantle } from "viem/chains";
+import { celo, flowMainnet, base, bsc, arbitrum, polygon, mantle } from "viem/chains";
 
 import type { StrategyMetadata } from "@/types";
-import { USDC, USDT, CELO, FLOW, cEUR, WBNB } from "@/constants/coins";
-import { AAVE, UNISWAP, MORPHO, LIDO, FLUID, ST_CELO, ANKR, AVANTIS, HARVEST, CIAN, USDC_YIELD } from "./protocols";
+import { USDC, USDT, CELO, FLOW, WBNB } from "@/constants/coins";
+import { AAVE, MORPHO, ANKR, AVANTIS, HARVEST, CIAN, USDC_YIELD, FLUID } from "./protocols";
 
 export const STRATEGIES = [
   // Active strategies
@@ -238,7 +238,7 @@ export const ACTIVE_STRATEGIES: StrategyMetadata[] = [
     learnMoreLink:
       "https://app.morpho.org/base/market/0x8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda/weth-usdc",
     tokens: [USDC],
-    chainId: base.id,
+    chainId: mantle.id,
     status: "active",
   },
 
@@ -258,7 +258,7 @@ export const ACTIVE_STRATEGIES: StrategyMetadata[] = [
     learnMoreLink:
       "https://app.aave.com/reserve-overview/?underlyingAsset=0x833589fcd6edb6e08f4c7c32d4f71b54bda02913&marketName=proto_base_v3",
     tokens: [USDC],
-    chainId: base.id,
+    chainId: mantle.id,
     status: "active",
   },
   {

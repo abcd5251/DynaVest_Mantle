@@ -52,6 +52,7 @@ export type PieStrategy = {
   apy: string;
   risk: RiskLevel;
   allocation: number;
+  chainId: number;
 };
 
 export type StrategyDetailsChartToggleOption = "APY" | "TVL" | "PRICE";

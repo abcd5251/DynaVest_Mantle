@@ -111,6 +111,7 @@ export function PortfolioPieChart({
               name={strategy.name}
               apy={strategy.apy}
               risk={strategy.risk}
+              chainId={strategy.chainId}
             />
           ))}
         </div>
