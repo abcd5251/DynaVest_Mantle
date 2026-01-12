@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Harvest Finance themed icon with wheat/farming motif -->
+  <circle cx="50" cy="50" r="48" fill="#FFAA00" stroke="#FF8800" stroke-width="2"/>
+
+  <!-- Wheat stalks -->
+  <g fill="#FFF" opacity="0.9">
+    <!-- Left stalk -->
+    <rect x="30" y="40" width="3" height="30" rx="1"/>
+    <ellipse cx="31.5" cy="38" rx="4" ry="6"/>
+    <ellipse cx="31.5" cy="34" rx="3.5" ry="5"/>
+    <ellipse cx="31.5" cy="30" rx="3" ry="4"/>
+
+    <!-- Center stalk -->
+    <rect x="48.5" y="35" width="3" height="35" rx="1"/>
+    <ellipse cx="50" cy="33" rx="5" ry="7"/>
+    <ellipse cx="50" cy="28" rx="4.5" ry="6"/>
+    <ellipse cx="50" cy="23" rx="4" ry="5"/>
+
+    <!-- Right stalk -->
+    <rect x="67" y="40" width="3" height="30" rx="1"/>
+    <ellipse cx="68.5" cy="38" rx="4" ry="6"/>
+    <ellipse cx="68.5" cy="34" rx="3.5" ry="5"/>
+    <ellipse cx="68.5" cy="30" rx="3" ry="4"/>
+  </g>
+
+  <!-- Text "HF" at bottom -->
+  <text x="50" y="80" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFF" text-anchor="middle">HF</text>
+</svg>
