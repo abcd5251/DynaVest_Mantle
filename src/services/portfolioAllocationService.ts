@@ -43,8 +43,13 @@ class PortfolioAllocationService {
       }
 
       case "medium": {
-        // Special handling for demo: specific strategies requested
-        const targetIds = ["HarvestFortyAcresUSDC", "MorphoSupply", "AaveV3SupplyLeveraged"];
+        // Special handling for demo: specific strategies requested (2 Base + 2 Mantle)
+        const targetIds = [
+          "HarvestFortyAcresUSDC", // Base
+          "MorphoSupply", // Base (OptLend)
+          "USDCYieldStrategy", // Mantle (USDC Yield)
+          "CianVaultSupply" // Mantle (Yield Layer)
+        ];
         
         // Find these strategies in metadata, ignoring chainId filter
         const specificStrategies = STRATEGIES_METADATA
