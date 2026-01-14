@@ -16,5 +16,6 @@ export * from "./ipor/fusionSupply";
 export * from "./avantis/vaultSupply";
 export * from "./harvest/vaultSupply";
 export * from "./cian/cianVaultSupply";
+export * from "./usdcYield/usdcYieldStrategy";
 
 export * from "./multiStrategy";

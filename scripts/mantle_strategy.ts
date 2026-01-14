@@ -61,7 +61,7 @@ const LENDLE_ABI = parseAbi([
   'function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external'
 ]);
 
-async function main() {
+export async function runMantleStrategy(amountUSDC: string = "1") {
   console.log(`🚀 Starting Mantle Strategy Script with account: ${account.address}`);
 
   // 1. Check Balances
@@ -74,24 +74,28 @@ async function main() {
 
   console.log(`💰 USDC Balance: ${Number(usdcBalance) / 1e6} USDC`);
 
-  const requiredUsdc = BigInt(1000000); // 1 USDC
+  const parsedAmount = parseUnits(amountUSDC, 6);
+  const requiredUsdc = parsedAmount; 
+  
   if (usdcBalance < requiredUsdc) {
-    console.error(`❌ Insufficient USDC balance. Need at least 1 USDC, found ${Number(usdcBalance) / 1e6}`);
-    return;
+    console.error(`❌ Insufficient USDC balance. Need at least ${amountUSDC} USDC, found ${Number(usdcBalance) / 1e6}`);
+    // For demo purposes, we might want to continue or throw? 
+    // Throwing allows the API to report failure.
+    throw new Error(`Insufficient USDC balance. Need ${amountUSDC}, found ${Number(usdcBalance) / 1e6}`);
   }
 
   // Check MNT Balance for depositing (Need 1 MNT + gas)
   const mntBalance = await client.getBalance({ address: account.address });
-  const mntToDeposit = BigInt(1000000000000000000); // 1 MNT
+  const mntToDeposit = BigInt(1000000000000000000); // 1 MNT fixed for now
   const gasBuffer = BigInt(500000000000000000); // 0.5 MNT
   
   if (mntBalance < mntToDeposit + gasBuffer) {
       console.error(`❌ Insufficient MNT balance. Need at least 1.5 MNT (1 for deposit + gas), found ${Number(mntBalance) / 1e18}`);
-      return;
+      throw new Error(`Insufficient MNT balance`);
   }
 
-  // 2. Define Swap Amounts (1 USDC for USDe)
-  const amountToSwap = BigInt(1000000); // 1 USDC
+  // 2. Define Swap Amounts (USDC for USDe)
+  const amountToSwap = parsedAmount; 
   console.log(`🔄 Strategy: Swap ${Number(amountToSwap) / 1e6} USDC to USDe and Deposit ${Number(mntToDeposit) / 1e18} Native MNT`);
 
   // 3. Approve Router
@@ -141,7 +145,7 @@ async function main() {
 
   if (!swapSuccess) {
     console.error('❌ All swap attempts failed. Aborting strategy.');
-    return;
+    throw new Error('Swap failed');
   }
 
   // 5. Deposit USDe into Lendle Isolated Market
@@ -188,6 +192,7 @@ async function main() {
           console.log('✅ Supply USDe successful');
       } catch (error) {
         console.error('❌ Failed to deposit/supply USDe:', error);
+        throw error;
       }
     }
   }
@@ -242,12 +247,16 @@ async function main() {
        console.log('✅ Supply WMNT successful');
      } catch (err) {
          console.error('❌ Failed to deposit/supply WMNT:', err);
+         throw err;
      }
   }
 
   console.log('🎉 Strategy Execution Finished!');
+  return "Success";
 }
 
-main().catch((error) => {
-  console.error(error);
-});
+if (require.main === module) {
+  runMantleStrategy().catch((error) => {
+    console.error(error);
+  });
+}

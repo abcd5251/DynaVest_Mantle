@@ -35,6 +35,7 @@ import {
   AvantisVaultSupply,
   HarvestVaultSupply,
   CianVaultSupply,
+  USDCYieldStrategy,
 } from "@/classes/strategies";
 import { AAVE } from "@/constants/protocols/aave";
 import { ANKR } from "@/constants/protocols/ankr";
@@ -42,6 +43,7 @@ import { IPOR } from "@/constants/protocols/ipor";
 import { AVANTIS } from "@/constants/protocols/avantis";
 import { HARVEST } from "@/constants/protocols/harvest";
 import { CIAN } from "@/constants/protocols/cian";
+import { USDC_YIELD } from "@/constants/protocols/usdcYield";
 
 export function isChainSupported<T extends Protocol>(
   protocol: T,
@@ -80,6 +82,7 @@ const STRATEGY_CONFIGS: Record<
   | "HarvestFortyAcresUSDC"
   | "HarvestAutopilotUSDC"
   | "CianVaultSupply"
+  | "USDCYieldStrategy"
   | "StCeloStaking"
   | "AnkrFlowStaking"
   | "UniswapV3AddLiquidity"
@@ -200,6 +203,11 @@ const STRATEGY_CONFIGS: Record<
     factory: (chainId) =>
       new CianVaultSupply(chainId as GetProtocolChains<typeof CIAN>),
   },
+  USDCYieldStrategy: {
+    protocol: USDC_YIELD,
+    factory: (chainId) =>
+      new USDCYieldStrategy(chainId as GetProtocolChains<typeof USDC_YIELD>),
+  },
 
   // Celo strategies
   StCeloStaking: {
@@ -249,9 +257,30 @@ export function getStrategy<
   strategy: T,
   chainId: number
 ): BaseStrategy<Protocol> {
-  const config = STRATEGY_CONFIGS[strategy];
+  let config = STRATEGY_CONFIGS[strategy];
+
+  // Fallback: If strategy ID is not found in config, try to match by Title or legacy IDs
+  // This handles cases where strategy title was stored instead of ID (e.g. legacy data)
+  if (!config) {
+    const metadata = STRATEGIES_METADATA.find((s) => s.title === (strategy as unknown as string));
+    if (metadata && STRATEGY_CONFIGS[metadata.id as keyof typeof STRATEGY_CONFIGS]) {
+      config = STRATEGY_CONFIGS[metadata.id as keyof typeof STRATEGY_CONFIGS];
+    }
+    
+    // Explicit legacy mapping for Harvest strategies which might be stored with different keys
+    if ((strategy as unknown as string) === "HarvestVaultSupply_fortyAcresUSDC") {
+       config = STRATEGY_CONFIGS["HarvestFortyAcresUSDC"];
+    }
+    if ((strategy as unknown as string) === "HarvestVaultSupply_autopilotUSDC") {
+       config = STRATEGY_CONFIGS["HarvestAutopilotUSDC"];
+    }
+  }
 
   try {
+    if (!config) {
+       throw new Error(`Strategy config not found for ${strategy}`);
+    }
+
     // All active strategies operate directly on their native chains
     if (isChainSupported(config.protocol, chainId)) {
       return config.factory(chainId);
@@ -267,10 +296,48 @@ export function getStrategyMetadata(
   strategy: Strategy,
   chainId: number
 ): StrategyMetadata {
-  const strategyMetadata = STRATEGIES_METADATA.find(
+  let strategyMetadata = STRATEGIES_METADATA.find(
     (s) => s.id === strategy && s.chainId === chainId
   );
 
-  if (!strategyMetadata) throw new Error("Strategy metadata not found");
+  // Fallback 1: Match by Title (legacy data fix)
+  if (!strategyMetadata) {
+    strategyMetadata = STRATEGIES_METADATA.find(
+      (s) => s.title === (strategy as unknown as string) && s.chainId === chainId
+    );
+  }
+
+  // Fallback 2: Match by ID ignoring ChainID (cross-chain display)
+  if (!strategyMetadata) {
+    strategyMetadata = STRATEGIES_METADATA.find(
+      (s) => s.id === strategy
+    );
+  }
+
+  // Fallback 3: Match by Title ignoring ChainID
+  if (!strategyMetadata) {
+    strategyMetadata = STRATEGIES_METADATA.find(
+      (s) => s.title === (strategy as unknown as string)
+    );
+  }
+
+  if (!strategyMetadata) {
+    console.warn(`Strategy metadata not found for ${strategy} on chain ${chainId}. Using fallback.`);
+    // Return a dummy metadata to prevent UI crash
+    // We need to import constants but we are inside a function.
+    // Ideally we should import them at top level.
+    // For now, let's try to return the first available strategy as a safe fallback
+    // or construct a minimal valid object if imports are available.
+    if (STRATEGIES_METADATA.length > 0) {
+        return {
+            ...STRATEGIES_METADATA[0],
+            title: `Unknown (${strategy})`,
+            id: strategy,
+            chainId: chainId
+        };
+    }
+    throw new Error(`Strategy metadata not found for ${strategy}`);
+  }
+  
   return strategyMetadata;
 }

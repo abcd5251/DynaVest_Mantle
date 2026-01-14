@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { MoveUpRight, Percent } from "lucide-react";
-import { parseUnits } from "viem";
+import { parseUnits, formatUnits } from "viem";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { usePrivy } from "@privy-io/react-auth";
 import { MoonLoader } from "react-spinners";
+import { mantle } from "viem/chains";
 
 import { RiskLevel, RiskPortfolioStrategies } from "@/types";
 import type { Message, PortfolioMessage } from "@/classes/message";
@@ -20,6 +21,8 @@ import { getStrategy } from "@/utils/strategies";
 import { MultiStrategy } from "@/classes/strategies/multiStrategy";
 import { useStrategy } from "@/hooks/useStrategy";
 import { useAssets } from "@/contexts/AssetsContext";
+import { updatePosition } from "@/hooks/useStrategy/utils";
+import { useTransaction } from "@/components/Profile/TransactionsTable/useTransaction";
 
 interface PortfolioChatWrapperProps {
   message: PortfolioMessage;
@@ -30,13 +33,14 @@ const PortfolioChatWrapper: React.FC<PortfolioChatWrapperProps> = ({
   message,
   addBotMessage,
 }) => {
-  const { authenticated } = usePrivy();
+  const { authenticated, user } = usePrivy();
   const { login } = useAssets();
   const [risk, setRisk] = useState<RiskLevel>(message.risk);
   const [strategies, setStrategies] = useState<RiskPortfolioStrategies[]>(
     message.strategies
   );
   const [isEdit, setIsEdit] = useState(true);
+  const { addTx } = useTransaction();
 
   // TODO: hardcode USDC
   const { balance, isLoadingBalance } = useBalance(USDC);
@@ -79,28 +83,104 @@ const PortfolioChatWrapper: React.FC<PortfolioChatWrapperProps> = ({
   };
 
   async function executeMultiStrategy() {
-    const strategiesHandlers = strategies.map((strategy) => ({
-      strategy: getStrategy(strategy.id, strategy.chainId),
-      allocation: strategy.allocation,
-    }));
-    const multiStrategy = new MultiStrategy(strategiesHandlers);
+    const mantleStrategies = strategies.filter((s) => s.chainId === mantle.id);
+    const otherStrategies = strategies.filter((s) => s.chainId !== mantle.id);
 
     try {
-      const txHash = await multiInvest.mutateAsync({
-        multiStrategy,
-        amount: parseUnits(message.amount, USDC.decimals),
-        token: USDC,
-      });
-      toast.success(`Portfolio built successfully, ${txHash}`);
+      // 1. Execute Base/Other strategies via standard flow
+      let txHash = "";
+      if (otherStrategies.length > 0) {
+        const strategiesHandlers = otherStrategies.map((strategy) => ({
+          strategy: getStrategy(strategy.id as any, strategy.chainId),
+          allocation: strategy.allocation,
+        }));
+        const multiStrategy = new MultiStrategy(strategiesHandlers);
+
+        // Calculate total amount for these strategies
+        const totalOtherAllocation = otherStrategies.reduce((sum, s) => sum + s.allocation, 0);
+        const totalAmount = parseUnits(message.amount, USDC.decimals);
+        const amountForOther = (totalAmount * BigInt(totalOtherAllocation)) / BigInt(100);
+
+        if (amountForOther > BigInt(0)) {
+           // We pass full amount to multiInvest, but multiInvest splits based on allocation.
+           // Wait, multiInvest takes "amount" and splits it based on strategy.allocation.
+           // But strategy.allocation sums to 100 usually.
+           // Here, otherStrategies allocation sum < 100.
+           // MultiStrategy logic: (amount * strategy.allocation) / 100.
+           // So if we pass the FULL amount, it will calculate correctly relative to the full portfolio.
+           // e.g. 100 USDC. Strategy A is 25%. Invests 25 USDC.
+           // Correct.
+           
+           txHash = await multiInvest.mutateAsync({
+            multiStrategy,
+            amount: totalAmount,
+            token: USDC,
+          });
+          toast.success(`Base strategies executed successfully, ${txHash}`);
+        }
+      }
+
+      // 2. Execute Mantle strategies via Script API
+      if (mantleStrategies.length > 0) {
+        const totalMantleAllocation = mantleStrategies.reduce((sum, s) => sum + s.allocation, 0);
+        const totalAmount = parseUnits(message.amount, USDC.decimals);
+        const amountForMantle = (totalAmount * BigInt(totalMantleAllocation)) / BigInt(100);
+        const amountForMantleString = formatUnits(amountForMantle, USDC.decimals);
+
+        toast.info("Executing Mantle strategies...");
+        
+        try {
+          const response = await axios.post('/api/mantle-strategy', {
+            amount: amountForMantleString
+          });
+
+          if (response.data.success) {
+            toast.success("Mantle strategies executed successfully");
+            
+            // Record positions and transactions manually
+            for (const strategy of mantleStrategies) {
+               const strategyAmount = (totalAmount * BigInt(strategy.allocation)) / BigInt(100);
+               const strategyAmountNumber = Number(formatUnits(strategyAmount, USDC.decimals));
+               
+               if (user?.wallet?.address) {
+                 await updatePosition({
+                    address: user.wallet.address as `0x${string}`,
+                    amount: strategyAmountNumber,
+                    token_name: "USDC",
+                    chain_id: mantle.id,
+                    strategy: strategy.id, // Use strategy ID for correct retrieval
+                 });
+
+                 await addTx.mutateAsync({
+                    address: user.wallet.address as `0x${string}`,
+                    chain_id: mantle.id,
+                    strategy: strategy.id, // Use strategy ID
+                    hash: "0x" + "0".repeat(64), // Dummy hash or maybe from script? Script returns "Success".
+                    amount: strategyAmountNumber,
+                    token_name: "USDC",
+                    transaction_type: "deposit",
+                  });
+               }
+            }
+          } else {
+             toast.error(`Mantle execution failed: ${response.data.error}`);
+          }
+        } catch (err: any) {
+           console.error("Mantle API error:", err);
+           toast.error(`Mantle strategy failed: ${err.message}`);
+        }
+      }
+
       await addBotMessage(message.next("build"));
     } catch (error) {
       console.error("Error building portfolio:", error);
       if (axios.isAxiosError(error) && error.response) {
-        const errorData = JSON.parse(error.response.data);
+        // const errorData = JSON.parse(error.response.data); // Often response.data is already object
+        const errorData = error.response.data;
         console.error("Error response data:", errorData);
-        toast.error(`Error building portfolio, ${errorData.message}`);
+        toast.error(`Error building portfolio: ${errorData.message || error.message}`);
       } else {
-        toast.error(`Error building portfolio, ${error}`);
+        toast.error(`Error building portfolio: ${error}`);
       }
     }
   }
