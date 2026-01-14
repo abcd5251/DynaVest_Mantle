@@ -64,6 +64,8 @@ const LENDLE_ABI = parseAbi([
 export async function runMantleStrategy(amountUSDC: string = "1") {
   console.log(`🚀 Starting Mantle Strategy Script with account: ${account.address}`);
 
+  const txHashes: string[] = [];
+
   // 1. Check Balances
   const usdcBalance = await client.readContract({
     address: CONFIG.USDC as Hex,
@@ -86,8 +88,8 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
 
   // Check MNT Balance for depositing (Need 1 MNT + gas)
   const mntBalance = await client.getBalance({ address: account.address });
-  const mntToDeposit = BigInt(1000000000000000000); // 1 MNT fixed for now
-  const gasBuffer = BigInt(500000000000000000); // 0.5 MNT
+  const mntToDeposit = BigInt("1000000000000000000"); // 1 MNT fixed for now
+  const gasBuffer = BigInt("500000000000000000"); // 0.5 MNT
   
   if (mntBalance < mntToDeposit + gasBuffer) {
       console.error(`❌ Insufficient MNT balance. Need at least 1.5 MNT (1 for deposit + gas), found ${Number(mntBalance) / 1e18}`);
@@ -107,6 +109,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
     args: [CONFIG.AGNI_ROUTER as Hex, amountToSwap],
   });
   await client.waitForTransactionReceipt({ hash: approveTx });
+  txHashes.push(approveTx);
   console.log('✅ Approved');
 
   // 4. Swap USDC -> USDe with Retry Logic for Fees
@@ -135,6 +138,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
         args: [usdeSwapParams],
       });
       await client.waitForTransactionReceipt({ hash: usdeSwapTx });
+      txHashes.push(usdeSwapTx);
       console.log(`✅ Swap USDC -> USDe complete (Fee: ${fee})`);
       swapSuccess = true;
       break; 
@@ -167,6 +171,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
       args: [CONFIG.LENDLE_MARKET as Hex, usdeBalance],
     });
     await client.waitForTransactionReceipt({ hash: approveLendleTx });
+    txHashes.push(approveLendleTx);
     console.log('✅ Approved USDe for Lendle');
 
     // Deposit
@@ -178,6 +183,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
         args: [CONFIG.USDe as Hex, usdeBalance, account.address, 0],
       });
       await client.waitForTransactionReceipt({ hash: depositTx });
+      txHashes.push(depositTx);
       console.log('✅ Deposit USDe successful');
     } catch (e) {
       console.warn('⚠️ deposit() failed, trying supply()...');
@@ -189,6 +195,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
             args: [CONFIG.USDe as Hex, usdeBalance, account.address, 0],
           });
           await client.waitForTransactionReceipt({ hash: supplyTx });
+          txHashes.push(supplyTx);
           console.log('✅ Supply USDe successful');
       } catch (error) {
         console.error('❌ Failed to deposit/supply USDe:', error);
@@ -210,6 +217,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
       value: mntToDeposit,
     });
     await client.waitForTransactionReceipt({ hash: wrapTx });
+    txHashes.push(wrapTx);
     console.log('✅ Wrapped MNT to WMNT');
 
     // 6b. Approve WMNT for Lendle
@@ -221,6 +229,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
       args: [CONFIG.LENDLE_MARKET as Hex, mntToDeposit],
     });
     await client.waitForTransactionReceipt({ hash: approveWmntTx });
+    txHashes.push(approveWmntTx);
     console.log('✅ Approved WMNT for Lendle');
 
     // 6c. Deposit WMNT
@@ -232,6 +241,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
       args: [CONFIG.WMNT as Hex, mntToDeposit, account.address, 0],
     });
     await client.waitForTransactionReceipt({ hash: depositWmntTx });
+    txHashes.push(depositWmntTx);
     console.log('✅ Deposit WMNT successful');
 
   } catch (error) {
@@ -244,6 +254,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
            args: [CONFIG.WMNT as Hex, mntToDeposit, account.address, 0],
        });
        await client.waitForTransactionReceipt({ hash: supplyTx });
+       txHashes.push(supplyTx);
        console.log('✅ Supply WMNT successful');
      } catch (err) {
          console.error('❌ Failed to deposit/supply WMNT:', err);
@@ -252,7 +263,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
   }
 
   console.log('🎉 Strategy Execution Finished!');
-  return "Success";
+  return { success: true, txHashes };
 }
 
 if (require.main === module) {

@@ -3,10 +3,8 @@ import { toast } from "react-toastify";
 
 import PositionTableRow from "./PositionTableRow";
 import { useAssets } from "@/contexts/AssetsContext";
-import { useChainId } from "wagmi";
 
 export default function StrategiesTableComponent() {
-  const chainId = useChainId();
   const [sortKey, setSortKey] = useState<"amount" | null>("amount");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const { positionsQuery } = useAssets();
@@ -16,7 +14,7 @@ export default function StrategiesTableComponent() {
     ? [...positions]
         .filter(
           (position) =>
-            position.status === "true" && position.chainId === chainId
+            position.status === "true" // Show all active positions regardless of chain
         )
         .sort((a, b) => {
           if (!sortKey) return 0;

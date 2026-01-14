@@ -244,7 +244,8 @@ function getFallbackData(strategyId: string): StrategyLiveData {
     'AaveV3SupplyPolygon': { apy: 3.8, title: 'AAVE/USDC-Poly' },
     'AaveV3SupplyArbitrum': { apy: 4.2, title: 'AAVE/USDC-Arb' },
     'AnkrFlowStaking': { apy: 10.8, title: 'Flow LST' },
-    'CianVaultSupply': { apy: 7.08, title: 'Yield Layer' }
+    'CianVaultSupply': { apy: 7.08, title: 'Yield Layer' },
+    'USDCYieldStrategy': { apy: 7.06, title: 'USDC Yield' }
   };
 
   const strategy = STRATEGIES_MAP[strategyId as keyof typeof STRATEGIES_MAP];
@@ -263,7 +264,7 @@ function getFallbackData(strategyId: string): StrategyLiveData {
     source = 'aave';
   } else if (isMorphoStrategy) {
     source = 'morpho';
-  } else if (isFluidStrategy || strategyId === 'StCeloStaking' || strategyId === 'AaveV3SupplyCelo' || strategyId === 'AnkrFlowStaking' || strategyId === 'AvantisVaultSupply' || strategyId === 'HarvestFortyAcresUSDC' || strategyId === 'HarvestAutopilotUSDC' || strategyId === 'CianVaultSupply') {
+  } else if (isFluidStrategy || strategyId === 'StCeloStaking' || strategyId === 'AaveV3SupplyCelo' || strategyId === 'AnkrFlowStaking' || strategyId === 'AvantisVaultSupply' || strategyId === 'HarvestFortyAcresUSDC' || strategyId === 'HarvestAutopilotUSDC' || strategyId === 'CianVaultSupply' || strategyId === 'USDCYieldStrategy') {
     // Mark all other active strategies as 'graph' to show green indicator
     source = 'graph';
   }

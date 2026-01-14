@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { useChainId } from "wagmi";
 
 import { useTransaction, type GetTransactionResponse } from "./useTransaction";
 import { getStrategyMetadata } from "@/utils/strategies";
@@ -16,17 +15,17 @@ const STRATEGY_DISPLAY_NAMES: Record<string, string> = {
   'AaveV3Supply': 'Conservative Yield',
   'MorphoSupply': 'Optimized Lending',
   'AaveV3SupplyLeveraged': 'Enhanced Returns',
-  'FluidSupply': 'Dynamic Yield'
+  'FluidSupply': 'Dynamic Yield',
+  'USDCYieldStrategy': 'USDC Yield Layer',
+  'CianVaultSupply': 'Yield Layer'
 };
 
 export default function TransactionsTableComponent() {
   const { transactions: txs } = useTransaction();
-  const chainId = useChainId();
   const { data: transactions = initialTransactions } = txs;
-  const chain = getChain(chainId);
 
   const filteredTransactions = transactions.filter(
-    (transaction) => transaction.chain_id === chainId
+    (transaction) => true // Show all transactions regardless of chain
   );
 
   return (
@@ -46,11 +45,13 @@ export default function TransactionsTableComponent() {
       {/* Scrollable Content */}
       <div className="w-[100%] flex-1 overflow-y-auto px-3 py-1">
         <div className="space-y-3">
-          {filteredTransactions.map((transaction) => (
+          {filteredTransactions.map((transaction) => {
+            const txChain = getChain(transaction.chain_id);
+            return (
             <div
               onClick={() =>
                 window.open(
-                  ` ${chain?.blockExplorers.default.url}/tx/${transaction.hash}`,
+                  ` ${txChain?.blockExplorers.default.url}/tx/${transaction.hash}`,
                   "_blank"
                 )
               }
@@ -105,7 +106,8 @@ export default function TransactionsTableComponent() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

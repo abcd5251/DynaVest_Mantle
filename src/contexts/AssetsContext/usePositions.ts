@@ -32,8 +32,21 @@ const getPositions = async (address: string): Promise<Position[]> => {
         timeout: 5000, // 5 second timeout
       }
     );
+    
+    // Check if we need to add mock Mantle positions
+    // This uses a local storage key to persist the mock positions across reloads
+    const storedMantlePositions = localStorage.getItem(`mantle_positions_${address}`);
+    let mantlePositions: Position[] = [];
+    
+    if (storedMantlePositions) {
+        try {
+            mantlePositions = JSON.parse(storedMantlePositions);
+        } catch (e) {
+            console.error("Failed to parse mantle positions", e);
+        }
+    }
 
-    return response.data.map((position) => ({
+    const backendPositions: Position[] = response.data.map((position) => ({
       id: position.position_id,
       createAt: position.created_at,
       strategy: position.strategy as Strategy,
@@ -41,9 +54,26 @@ const getPositions = async (address: string): Promise<Position[]> => {
       amount: position.amount,
       chainId: position.chain_id as SupportedChainIds,
       status: position.status,
+      entryPrice: 1, // Default to 1 if not provided by backend yet
+      updatedAt: position.updated_at,
+      userId: position.user_id,
+      strategyId: position.strategy // Using strategy enum as ID for now
     }));
+    
+    return [...backendPositions, ...mantlePositions];
   } catch (error) {
-    console.warn("Backend API not available - positions feature disabled", error);
+    console.warn("Backend API not available - using local mock data if available", error);
+    
+    // Fallback to local storage even if backend fails
+    const storedMantlePositions = localStorage.getItem(`mantle_positions_${address}`);
+    if (storedMantlePositions) {
+        try {
+            return JSON.parse(storedMantlePositions);
+        } catch (e) {
+            console.error("Failed to parse mantle positions", e);
+        }
+    }
+    
     return [];
   }
 };

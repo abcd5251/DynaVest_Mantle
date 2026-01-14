@@ -137,6 +137,10 @@ const PortfolioChatWrapper: React.FC<PortfolioChatWrapperProps> = ({
           if (response.data.success) {
             toast.success("Mantle strategies executed successfully");
             
+            const txHashes = response.data.result.txHashes || [];
+            // Use the last hash as the primary one, or a fallback if empty
+            const primaryHash = txHashes.length > 0 ? txHashes[txHashes.length - 1] : ("0x" + "0".repeat(64));
+
             // Record positions and transactions manually
             for (const strategy of mantleStrategies) {
                const strategyAmount = (totalAmount * BigInt(strategy.allocation)) / BigInt(100);
@@ -155,7 +159,7 @@ const PortfolioChatWrapper: React.FC<PortfolioChatWrapperProps> = ({
                     address: user.wallet.address as `0x${string}`,
                     chain_id: mantle.id,
                     strategy: strategy.id, // Use strategy ID
-                    hash: "0x" + "0".repeat(64), // Dummy hash or maybe from script? Script returns "Success".
+                    hash: primaryHash, // Use real hash from script
                     amount: strategyAmountNumber,
                     token_name: "USDC",
                     transaction_type: "deposit",

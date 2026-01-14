@@ -71,14 +71,70 @@ export async function getInvestCalls(
   return calls;
 }
 
+import { Position } from "@/types/position";
+import { SupportedChainIds } from "@/providers/config";
+
+// ... existing imports ...
+
 /**
  * @notice Update the position in the database, if the position doesn't exist, create a new one
  * @param positionParams - The parameters for the position
- * @returns API Axios response
+ * @returns API Axios response or mock response
  */
 export async function updatePosition(positionParams: PositionParams) {
-  // TODO: refactor with backend
+  // Mantle Strategy Special Handling (Mock implementation to bypass 404)
+  // If chainId is 5000 (Mantle), we handle it locally since backend might not support it yet
+  if (positionParams.chain_id === 5000) {
+    console.log("Mocking Mantle position update locally", positionParams);
+    
+    // Save to local storage for persistence across reloads
+    const storageKey = `mantle_positions_${positionParams.address}`;
+    const existingData = localStorage.getItem(storageKey);
+    let positions: Position[] = existingData ? JSON.parse(existingData) : [];
+    
+    // Check if position already exists
+    const existingIndex = positions.findIndex(p => 
+        p.strategy === positionParams.strategy && 
+        p.chainId === positionParams.chain_id
+    );
+    
+    const now = new Date().toISOString();
+    
+    if (existingIndex >= 0) {
+        // Update existing
+        positions[existingIndex].amount += positionParams.amount;
+        positions[existingIndex].updatedAt = now;
+    } else {
+        // Create new
+        const newPosition: Position = {
+            id: `mantle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            createAt: now,
+            updatedAt: now,
+            userId: "user_" + positionParams.address.slice(0, 8),
+            amount: positionParams.amount,
+            tokenName: positionParams.token_name,
+            chainId: positionParams.chain_id as SupportedChainIds,
+            strategy: positionParams.strategy as any,
+            status: "true",
+            entryPrice: 1,
+            strategyId: positionParams.strategy
+        };
+        positions.push(newPosition);
+    }
+    
+    localStorage.setItem(storageKey, JSON.stringify(positions));
+    
+    // Return a mock Axios response structure
+    return {
+        data: { success: true, message: "Mantle position updated locally" },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config: {} as any
+    };
+  }
 
+  // Standard flow for other chains
   // Check user if have any position
   let res: AxiosResponse;
   try {
