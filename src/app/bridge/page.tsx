@@ -1,10 +1,5 @@
-import ComingSoon from "@/components/ComingSoon";
+import BridgeComponent from "@/components/Bridge";
 
 export default function BridgePage() {
-  return (
-    <ComingSoon
-      title="Cross-Chain Bridge"
-      description="Seamlessly transfer your assets across multiple blockchain networks. Our bridge solution is coming soon!"
-    />
-  );
+  return <BridgeComponent />;
 }

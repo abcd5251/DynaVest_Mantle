@@ -5,7 +5,7 @@ import type { Protocol } from "@/types/strategies";
 export const CIAN = {
   name: "CIAN",
   description: "Yield Layer of DeFi",
-  icon: "/crypto-icons/cian.svg",
+  icon: "/crypto-icons/cian.svg", 
   link: "https://cian.app/",
   contracts: {
     [mantle.id]: {

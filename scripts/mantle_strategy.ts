@@ -2,10 +2,9 @@ import {
   createWalletClient, 
   http, 
   parseUnits, 
-  encodeFunctionData, 
   erc20Abi, 
-  publicActions,
-  parseAbi,
+  publicActions, 
+  parseAbi, 
   Hex
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -64,6 +63,13 @@ const LENDLE_ABI = parseAbi([
 export async function runMantleStrategy(amountUSDC: string = "1") {
   console.log(`🚀 Starting Mantle Strategy Script with account: ${account.address}`);
 
+  // Fetch initial nonce
+  let nonce = await client.getTransactionCount({
+    address: account.address,
+    blockTag: 'pending'
+  });
+  console.log(`Initial Nonce: ${nonce}`);
+
   const txHashes: string[] = [];
 
   // 1. Check Balances
@@ -107,6 +113,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
     abi: erc20Abi,
     functionName: 'approve',
     args: [CONFIG.AGNI_ROUTER as Hex, amountToSwap],
+    nonce: nonce++,
   });
   await client.waitForTransactionReceipt({ hash: approveTx });
   txHashes.push(approveTx);
@@ -136,6 +143,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
         abi: ROUTER_ABI,
         functionName: 'exactInputSingle',
         args: [usdeSwapParams],
+        nonce: nonce++,
       });
       await client.waitForTransactionReceipt({ hash: usdeSwapTx });
       txHashes.push(usdeSwapTx);
@@ -144,6 +152,11 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
       break; 
     } catch (e) {
       console.warn(`⚠️ Swap failed with fee ${fee}.`);
+      // Re-fetch nonce to ensure we have the correct one for the next attempt
+      nonce = await client.getTransactionCount({
+        address: account.address,
+        blockTag: 'pending'
+      });
     }
   }
 
@@ -169,6 +182,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
       abi: erc20Abi,
       functionName: 'approve',
       args: [CONFIG.LENDLE_MARKET as Hex, usdeBalance],
+      nonce: nonce++,
     });
     await client.waitForTransactionReceipt({ hash: approveLendleTx });
     txHashes.push(approveLendleTx);
@@ -181,23 +195,27 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
         abi: LENDLE_ABI,
         functionName: 'deposit',
         args: [CONFIG.USDe as Hex, usdeBalance, account.address, 0],
+        nonce: nonce++,
       });
       await client.waitForTransactionReceipt({ hash: depositTx });
       txHashes.push(depositTx);
       console.log('✅ Deposit USDe successful');
     } catch (e) {
       console.warn('⚠️ deposit() failed, trying supply()...');
+      nonce--; // Reset nonce for fallback
       try {
         const supplyTx = await client.writeContract({
             address: CONFIG.LENDLE_MARKET as Hex,
             abi: LENDLE_ABI,
             functionName: 'supply',
             args: [CONFIG.USDe as Hex, usdeBalance, account.address, 0],
+            nonce: nonce++,
           });
           await client.waitForTransactionReceipt({ hash: supplyTx });
           txHashes.push(supplyTx);
           console.log('✅ Supply USDe successful');
       } catch (error) {
+        nonce--; // Reset nonce if failed
         console.error('❌ Failed to deposit/supply USDe:', error);
         throw error;
       }
@@ -215,6 +233,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
     const wrapTx = await client.sendTransaction({
       to: CONFIG.WMNT as Hex,
       value: mntToDeposit,
+      nonce: nonce++,
     });
     await client.waitForTransactionReceipt({ hash: wrapTx });
     txHashes.push(wrapTx);
@@ -227,6 +246,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
       abi: erc20Abi,
       functionName: 'approve',
       args: [CONFIG.LENDLE_MARKET as Hex, mntToDeposit],
+      nonce: nonce++,
     });
     await client.waitForTransactionReceipt({ hash: approveWmntTx });
     txHashes.push(approveWmntTx);
@@ -239,6 +259,7 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
       abi: LENDLE_ABI,
       functionName: 'deposit',
       args: [CONFIG.WMNT as Hex, mntToDeposit, account.address, 0],
+      nonce: nonce++,
     });
     await client.waitForTransactionReceipt({ hash: depositWmntTx });
     txHashes.push(depositWmntTx);
@@ -246,17 +267,20 @@ export async function runMantleStrategy(amountUSDC: string = "1") {
 
   } catch (error) {
      console.warn('⚠️ WMNT deposit() failed, trying supply()...');
+     nonce--; // Reset nonce for fallback (assuming failure was in last writeContract)
      try {
        const supplyTx = await client.writeContract({
            address: CONFIG.LENDLE_MARKET as Hex,
            abi: LENDLE_ABI,
            functionName: 'supply',
            args: [CONFIG.WMNT as Hex, mntToDeposit, account.address, 0],
+           nonce: nonce++,
        });
        await client.waitForTransactionReceipt({ hash: supplyTx });
        txHashes.push(supplyTx);
        console.log('✅ Supply WMNT successful');
      } catch (err) {
+         nonce--; // Reset nonce if failed
          console.error('❌ Failed to deposit/supply WMNT:', err);
          throw err;
      }

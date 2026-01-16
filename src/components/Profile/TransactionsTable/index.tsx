@@ -51,7 +51,7 @@ export default function TransactionsTableComponent() {
             <div
               onClick={() =>
                 window.open(
-                  ` ${txChain?.blockExplorers.default.url}/tx/${transaction.hash}`,
+                  `${txChain?.blockExplorers?.default.url}/tx/${transaction.hash}`,
                   "_blank"
                 )
               }

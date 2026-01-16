@@ -56,7 +56,7 @@ export const BOT_STRATEGY: StrategyMetadata = {
 // Active strategies on Base network only
 export const ACTIVE_STRATEGIES: StrategyMetadata[] = [
   {
-    title: "USDC Yield",
+    title: "Yield Layer Lendle",
     id: "USDCYieldStrategy",
     apy: 7.06,
     risk: "medium",
